@@ -149,8 +149,8 @@ const channelInfo = {
         forwardingScore: 1,
         isForwarded: false,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363421182264556@newsletter',
-            newsletterName: 'Trusted Shop Online ❤️🌸',
+            newsletterJid: '120363424061793692@newsletter',
+            newsletterName: '𝐃𝐚𝐫𝐤𝐒𝐚𝐝𝐢𝐬𝐭𝐢𝐜-𝐌𝐃 🖤🚩',
             serverMessageId: -1
         }
     }
