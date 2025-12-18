@@ -140,8 +140,8 @@ const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
-global.channelLink = "https://whatsapp.com/channel/0029Vb6WblCDzgTGZta0re0l";
-global.ytch = "Owner of Trusted Shop Online ❤️🌸";
+global.channelLink = "https://whatsapp.com/channel/0029VbCLVCcG8l5G2sYB9729";
+global.ytch = "Owner of 𝐃𝐚𝐫𝐤𝐒𝐚𝐝𝐢𝐬𝐭𝐢𝐜-𝐌𝐃 🖤🚩";
 
 // Add this near the top of main.js with other global configurations
 const channelInfo = {
@@ -410,4 +410,4 @@ case (userMessage && userMessage.trim().toLowerCase() === '.whoisgay'):
                     // Update access mode
                     data.isPublic = action === 'public';
 
-                    // Save update
+              
