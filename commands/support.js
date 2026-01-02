@@ -4,7 +4,7 @@ module.exports = {
   description: "Get DarkSadistic-MD support links and contact info",
   category: "general",
   async run({ conn, m }) {
-    const caption = `🛠️ *DarkSadistic-MD - SUPPORT CENTER* 🛠️
+    const caption = `🛠️ *𝐃𝐚𝐫𝐤𝐒𝐚𝐝𝐢𝐬𝐭𝐢𝐜-𝐌𝐃 🖤🚩 - SUPPORT CENTER* 🛠️
 
 
 
