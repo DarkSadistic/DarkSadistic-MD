@@ -1,46 +1,46 @@
+// 🧹 Fix for ENOSPC / temp overflow in hosted panels
+const fs = require('fs');
+const path = require('path');
+
+// Redirect temp storage away from system /tmp
+const customTemp = path.join(process.cwd(), 'temp');
+if (!fs.existsSync(customTemp)) fs.mkdirSync(customTemp, { recursive: true });
+process.env.TMPDIR = customTemp;
+process.env.TEMP = customTemp;
+process.env.TMP = customTemp;
+
+// Auto-cleaner every 3 hours
+setInterval(() => {
+    fs.readdir(customTemp, (err, files) => {
+        if (err) return;
+        for (const file of files) {
+            const filePath = path.join(customTemp, file);
+            fs.stat(filePath, (err, stats) => {
+                if (!err && Date.now() - stats.mtimeMs > 3 * 60 * 60 * 1000) {
+                    fs.unlink(filePath, () => { });
+                }
+            });
+        }
+    });
+    console.log('🧹 Temp folder auto-cleaned');
+}, 3 * 60 * 60 * 1000);
+
 const settings = require('./settings');
 require('./config.js');
 const { isBanned } = require('./lib/isBanned');
 const yts = require('yt-search');
 const { fetchBuffer } = require('./lib/myfunc');
-const fs = require('fs');
 const fetch = require('node-fetch');
 const ytdl = require('ytdl-core');
-const path = require('path');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
-
-const { addWelcome, delWelcome, isWelcomeOn, addGoodbye, delGoodBye, isGoodByeOn, isSudo } = require('./lib/index');
+const { isSudo } = require('./lib/index');
+const isOwnerOrSudo = require('./lib/isOwner');
+const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
+const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
 
 // Command imports
-const flirtCommand = require('./commands/flirt');
-const flirt2Command = require('./commands/flirt2');
-const ghosttrace = require('./commands/ghosttrace');
-const deleteBotCommand = require('./commands/deletebot'); // path may differ
-const supportCommand = require('./commands/support');
-const pregnancycheckCommand = require('./commands/pregnancycheck');
-const gaycheckCommand = require('./commands/gaycheck');
-const lovecheckCommand = require('./commands/lovecheck');
-const hornycheckCommand = require('./commands/hornycheck');
-const pussyloverCommand = require('./commands/pussylover');
-const gaydetectorCommand = require('./commands/gaydetector');
-const fartblasttextCommand = require('./commands/fartblasttext');
-const bedskillsCommand = require('./commands/bedskills');
-const brainwashCommand = require('./commands/brainwash');
-const detectCommand = require('./commands/detect');
-const ghostCommand = require('./commands/ghost');
-const mindreadCommand = require('./commands/mindread');
-const toiletCommand = require('./commands/toilet');
-const callmomCommand = require('./commands/callmom');
-const crushCommand = require('./commands/crush');
-const mirrorCommand = require('./commands/mirror');
-const auntyalertCommand = require('./commands/auntyalert');
-const explodeCommand = require('./commands/explode');
-const spyCommand = require('./commands/spy');
-const unhackCommand = require('./commands/unhack'); // Adjust path if needed
-const hackCommand = require('./commands/hack');
-
-const getppCommand =require('./commands/getpp');
+const tagAllCommand = require('./commands/tagall');
 const helpCommand = require('./commands/help');
 const banCommand = require('./commands/ban');
 const { promoteCommand } = require('./commands/promote');
@@ -57,15 +57,20 @@ const { incrementMessageCount, topMembers } = require('./commands/topmembers');
 const ownerCommand = require('./commands/owner');
 const deleteCommand = require('./commands/delete');
 const { handleAntilinkCommand, handleLinkDetection } = require('./commands/antilink');
+const { handleAntitagCommand, handleTagDetection } = require('./commands/antitag');
 const { Antilink } = require('./lib/antilink');
+const { handleMentionDetection, mentionToggleCommand, setMentionCommand } = require('./commands/mention');
 const memeCommand = require('./commands/meme');
 const tagCommand = require('./commands/tag');
+const tagNotAdminCommand = require('./commands/tagnotadmin');
+const hideTagCommand = require('./commands/hidetag');
 const jokeCommand = require('./commands/joke');
 const quoteCommand = require('./commands/quote');
 const factCommand = require('./commands/fact');
 const weatherCommand = require('./commands/weather');
 const newsCommand = require('./commands/news');
 const kickCommand = require('./commands/kick');
+const simageCommand = require('./commands/simage');
 const attpCommand = require('./commands/attp');
 const { startHangman, guessLetter } = require('./commands/hangman');
 const { startTrivia, answerTrivia } = require('./commands/trivia');
@@ -77,13 +82,16 @@ const { dareCommand } = require('./commands/dare');
 const { truthCommand } = require('./commands/truth');
 const { clearCommand } = require('./commands/clear');
 const pingCommand = require('./commands/ping');
-const welcomeCommand = require('./commands/welcome');
-const goodbyeCommand = require('./commands/goodbye');
+const aliveCommand = require('./commands/alive');
+const blurCommand = require('./commands/img-blur');
+const { welcomeCommand, handleJoinEvent } = require('./commands/welcome');
+const { goodbyeCommand, handleLeaveEvent } = require('./commands/goodbye');
 const githubCommand = require('./commands/github');
 const { handleAntiBadwordCommand, handleBadwordDetection } = require('./lib/antibadword');
 const antibadwordCommand = require('./commands/antibadword');
 const { handleChatbotCommand, handleChatbotResponse } = require('./commands/chatbot');
 const takeCommand = require('./commands/take');
+const { flirtCommand } = require('./commands/flirt');
 const characterCommand = require('./commands/character');
 const wastedCommand = require('./commands/wasted');
 const shipCommand = require('./commands/ship');
@@ -102,52 +110,50 @@ const { stupidCommand } = require('./commands/stupid');
 const stickerTelegramCommand = require('./commands/stickertelegram');
 const textmakerCommand = require('./commands/textmaker');
 const { handleAntideleteCommand, handleMessageRevocation, storeMessage } = require('./commands/antidelete');
+const clearTmpCommand = require('./commands/cleartmp');
 const setProfilePicture = require('./commands/setpp');
+const { setGroupDescription, setGroupName, setGroupPhoto } = require('./commands/groupmanage');
+const instagramCommand = require('./commands/instagram');
 const facebookCommand = require('./commands/facebook');
+const spotifyCommand = require('./commands/spotify');
 const playCommand = require('./commands/play');
 const tiktokCommand = require('./commands/tiktok');
 const songCommand = require('./commands/song');
 const aiCommand = require('./commands/ai');
+const urlCommand = require('./commands/url');
 const { handleTranslateCommand } = require('./commands/translate');
 const { handleSsCommand } = require('./commands/ss');
 const { addCommandReaction, handleAreactCommand } = require('./lib/reactions');
-//const { goodnightCommand } = require('./commands/goodnight');
+const { goodnightCommand } = require('./commands/goodnight');
 const { shayariCommand } = require('./commands/shayari');
 const { rosedayCommand } = require('./commands/roseday');
 const imagineCommand = require('./commands/imagine');
 const videoCommand = require('./commands/video');
 const sudoCommand = require('./commands/sudo');
-const shafiCommand = require('./commands/shafi');
-const aliveCommand = require('./commands/alive');
-const tagAllCommand = require('./commands/tagall');
-const kissCommand = require('./commands/kiss');
+const { miscCommand, handleHeart } = require('./commands/misc');
+const { animeCommand } = require('./commands/anime');
+const { piesCommand, piesAlias } = require('./commands/pies');
+const stickercropCommand = require('./commands/stickercrop');
 const updateCommand = require('./commands/update');
-const hideTagCommand = require('./commands/hidetag');
-const menu2Command = require('./commands/menu2');
-const { inviteCommand } = require('./commands/invite');
-const whoisgayCommand = require('./commands/whoisgay');
-const whoisCommand = require('./commands/whois');
-const virusCommand = require('./commands/virus');
-const marryCommand = require('./commands/marry');
-const fightCommand = require('./commands/fight');
-const timeCommand = require('./commands/time');
-const imgCommand = require('./commands/img');
-const urlCommand = require('./commands/url');
-const settingsCommand = require('./commands/settings');
+const removebgCommand = require('./commands/removebg');
+const { reminiCommand } = require('./commands/remini');
+const { igsCommand } = require('./commands/igs');
+const { anticallCommand, readState: readAnticallState } = require('./commands/anticall');
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
-
+const settingsCommand = require('./commands/settings');
+const soraCommand = require('./commands/sora');
 
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
 global.channelLink = "https://whatsapp.com/channel/0029VbCLVCcG8l5G2sYB9729";
-global.ytch = "Owner of 𝐃𝐚𝐫𝐤𝐒𝐚𝐝𝐢𝐬𝐭𝐢𝐜-𝐌𝐃 🖤🚩";
+global.ytch = "Mr. Erøxe [RanaTahirG]";
 
 // Add this near the top of main.js with other global configurations
 const channelInfo = {
     contextInfo: {
         forwardingScore: 1,
-        isForwarded: false,
+        isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363424061793692@newsletter',
             newsletterName: '𝐃𝐚𝐫𝐤𝐒𝐚𝐝𝐢𝐬𝐭𝐢𝐜-𝐌𝐃 🖤🚩',
@@ -164,9 +170,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const message = messages[0];
         if (!message?.message) return;
 
+        // Handle autoread functionality
+        await handleAutoread(sock, message);
+
         // Store message for antidelete feature
         if (message.message) {
-            storeMessage(message);
+            storeMessage(sock, message);
         }
 
         // Handle message revocation
@@ -178,15 +187,39 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const chatId = message.key.remoteJid;
         const senderId = message.key.participant || message.key.remoteJid;
         const isGroup = chatId.endsWith('@g.us');
-   const senderIsSudo = await isSudo(senderId);
+        const senderIsSudo = await isSudo(senderId);
+        const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
+
+        // Handle button responses
+        if (message.message?.buttonsResponseMessage) {
+            const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
+            const chatId = message.key.remoteJid;
+
+            if (buttonId === 'channel') {
+                await sock.sendMessage(chatId, {
+                    text: '📢 *Join our Channel:*\nhttps://whatsapp.com/channel/0029VbCLVCcG8l5G2sYB9729'
+                }, { quoted: message });
+                return;
+            } else if (buttonId === 'owner') {
+                const ownerCommand = require('./commands/owner');
+                await ownerCommand(sock, chatId);
+                return;
+            } else if (buttonId === 'support') {
+                await sock.sendMessage(chatId, {
+                    text: `🔗 *Support*\n\nhttps://facebook.com/YourFatherEditor`
+                }, { quoted: message });
+                return;
+            }
+        }
 
         const userMessage = (
             message.message?.conversation?.trim() ||
             message.message?.extendedTextMessage?.text?.trim() ||
             message.message?.imageMessage?.caption?.trim() ||
             message.message?.videoMessage?.caption?.trim() ||
+            message.message?.buttonsResponseMessage?.selectedButtonId?.trim() ||
             ''
-        ).toLowerCase().replace(/\.\\s+/g, '.').trim();
+        ).toLowerCase().replace(/\.\s+/g, '.').trim();
 
         // Preserve raw message for commands like .tag that need original casing
         const rawText = message.message?.conversation?.trim() ||
@@ -199,13 +232,22 @@ async function handleMessages(sock, messageUpdate, printLog) {
         if (userMessage.startsWith('.')) {
             console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);
         }
-
+        // Read bot mode once; don't early-return so moderation can still run in private mode
+        let isPublic = true;
+        try {
+            const data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
+            if (typeof data.isPublic === 'boolean') isPublic = data.isPublic;
+        } catch (error) {
+            console.error('Error checking access mode:', error);
+            // default isPublic=true on error
+        }
+        const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
         // Check if user is banned (skip ban check for unban command)
         if (isBanned(senderId) && !userMessage.startsWith('.unban')) {
             // Only respond occasionally to avoid spam
             if (Math.random() < 0.1) {
                 await sock.sendMessage(chatId, {
-                    text: '🛑 DarkSadistic-MD: You’ve been officially blocked from commands. Talk to an admin.',
+                    text: '❌ You are banned from using the bot. Contact an admin to get unbanned.',
                     ...channelInfo
                 });
             }
@@ -229,28 +271,58 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
 
-        // Check for bad words FIRST, before ANY other processing
-        if (isGroup && userMessage) {
-            await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
+        // Check for bad words and antilink FIRST, before ANY other processing
+        // Always run moderation in groups, regardless of mode
+        if (isGroup) {
+            if (userMessage) {
+                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
+            }
+            // Antilink checks message text internally, so run it even if userMessage is empty
+            await Antilink(message, sock);
+        }
+
+        // PM blocker: block non-owner DMs when enabled (do not ban)
+        if (!isGroup && !message.key.fromMe && !senderIsSudo) {
+            try {
+                const pmState = readPmBlockerState();
+                if (pmState.enabled) {
+                    // Inform user, delay, then block without banning globally
+                    await sock.sendMessage(chatId, { text: pmState.message || 'Private messages are blocked. Please contact the owner in groups only.' });
+                    await new Promise(r => setTimeout(r, 1500));
+                    try { await sock.updateBlockStatus(chatId, 'block'); } catch (e) { }
+                    return;
+                }
+            } catch (e) { }
         }
 
         // Then check for command prefix
         if (!userMessage.startsWith('.')) {
+            // Show typing indicator if autotyping is enabled
+            await handleAutotypingForMessage(sock, chatId, userMessage);
+
             if (isGroup) {
-                // Process non-command messages first
-                await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
-                await Antilink(message, sock);
-                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
+                // Always run moderation features (antitag) regardless of mode
+                await handleTagDetection(sock, chatId, message, senderId);
+                await handleMentionDetection(sock, chatId, message);
+
+                // Only run chatbot in public mode or for owner/sudo
+                if (isPublic || isOwnerOrSudoCheck) {
+                    await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
+                }
             }
+            return;
+        }
+        // In private mode, only owner/sudo can run commands
+        if (!isPublic && !isOwnerOrSudoCheck) {
             return;
         }
 
         // List of admin commands
-        const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.antilink'];
+        const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag', '.setgdesc', '.setgname', '.setgpp'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         let isSenderAdmin = false;
@@ -258,12 +330,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
-            const adminStatus = await isAdmin(sock, chatId, senderId, message);
+            const adminStatus = await isAdmin(sock, chatId, senderId);
             isSenderAdmin = adminStatus.isSenderAdmin;
             isBotAdmin = adminStatus.isBotAdmin;
 
             if (!isBotAdmin) {
-                await sock.sendMessage(chatId, { text: '🚫 Can’t execute admin commands without admin rights — promote me first!', ...channelInfo }, {quoted: message});
+                await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: message });
                 return;
             }
 
@@ -277,43 +349,35 @@ async function handleMessages(sock, messageUpdate, printLog) {
             ) {
                 if (!isSenderAdmin && !message.key.fromMe) {
                     await sock.sendMessage(chatId, {
-                        text: '😈 DarkSadistic-MD: Nice try, peasant. This button belongs to the kings and queens (admins).',
+                        text: 'Sorry, only group admins can use this command.',
                         ...channelInfo
-                    });
+                    }, { quoted: message });
                     return;
                 }
             }
         }
 
         // Check owner status for owner commands
-      if (isOwnerCommand) {
-            if (!message.key.fromMe && !senderIsSudo) {
-                await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' });
+        if (isOwnerCommand) {
+            if (!message.key.fromMe && !senderIsOwnerOrSudo) {
+                await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
                 return;
             }
         }
 
-        // Add this near the start of your message handling logic, before processing commands
-        try {
-            const data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-            // Allow owner to use bot even in private mode
-           if (!data.isPublic && !message.key.fromMe && !senderIsSudo) {
-                return;  // Silently ignore messages from non-owners when in private mode
-            }
-        } catch (error) {
-            console.error('Error checking access mode:', error);
-            // Default to public mode if there's an error reading the file
-        }
+        // Command handlers - Execute commands immediately without waiting for typing indicator
+        // We'll show typing indicator after command execution if needed
+        let commandExecuted = false;
 
-        // Command handlers
         switch (true) {
             case userMessage === '.simage': {
                 const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                 if (quotedMessage?.stickerMessage) {
                     await simageCommand(sock, quotedMessage, chatId);
                 } else {
-                    await sock.sendMessage(chatId, { text: '🎯 Tip from DarkSadistic-MD: Just reply to any sticker with .simage and watch the magic happen ✨.', ...channelInfo });
+                    await sock.sendMessage(chatId, { text: 'Please reply to a sticker with the .simage command to convert it.', ...channelInfo }, { quoted: message });
                 }
+                commandExecuted = true;
                 break;
             }
             case userMessage.startsWith('.kick'):
@@ -321,93 +385,36 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
                 break;
             case userMessage.startsWith('.mute'):
-                const muteDuration = parseInt(userMessage.split(' ')[1]);
-                if (isNaN(muteDuration)) {
-                    await sock.sendMessage(chatId, { text: '🕒 DarkSadistic-MD Tip: Minutes must be valid! Try: .mute 10\neg to mute 10 minutes\n.mute 10', ...channelInfo });
-                } else {
-                    await muteCommand(sock, chatId, senderId, muteDuration);
+                {
+                    const parts = userMessage.trim().split(/\s+/);
+                    const muteArg = parts[1];
+                    const muteDuration = muteArg !== undefined ? parseInt(muteArg, 10) : undefined;
+                    if (muteArg !== undefined && (isNaN(muteDuration) || muteDuration <= 0)) {
+                        await sock.sendMessage(chatId, { text: 'Please provide a valid number of minutes or use .mute with no number to mute immediately.', ...channelInfo }, { quoted: message });
+                    } else {
+                        await muteCommand(sock, chatId, senderId, message, muteDuration);
+                    }
                 }
                 break;
-            case userMessage === '. Unmute' || userMessage === '.Unmute' || userMessage === '.unmute':
+            case userMessage === '.unmute':
                 await unmuteCommand(sock, chatId, senderId);
                 break;
-            case userMessage.startsWith('.deletebot'):
-                await deleteBotCommand(sock, chatId, isGroup, senderId, isOwner);
-                break;
             case userMessage.startsWith('.ban'):
+                if (!isGroup) {
+                    if (!message.key.fromMe && !senderIsSudo) {
+                        await sock.sendMessage(chatId, { text: 'Only owner/sudo can use .ban in private chat.' }, { quoted: message });
+                        break;
+                    }
+                }
                 await banCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.unban'):
+                if (!isGroup) {
+                    if (!message.key.fromMe && !senderIsSudo) {
+                        await sock.sendMessage(chatId, { text: 'Only owner/sudo can use .unban in private chat.' }, { quoted: message });
+                        break;
+                    }
+                }
                 await unbanCommand(sock, chatId, message);
                 break;
-            case userMessage === '.Menu' || userMessage === '.menu' || userMessage === '. Menu' || userMessage === '. menu':
-                await helpCommand(sock, chatId, message, global.channelLink);
-                break;
-            case userMessage === '.sticker' || userMessage === '.s':
-                await stickerCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.warnings'):
-                const mentionedJidListWarnings = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warningsCommand(sock, chatId, mentionedJidListWarnings);
-                break;
-            case userMessage.startsWith('.warn'):
-                const mentionedJidListWarn = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warnCommand(sock, chatId, senderId, mentionedJidListWarn, message);
-                break;
-            case userMessage.startsWith('.tts'):
-                const text = userMessage.slice(4).trim();
-                await ttsCommand(sock, chatId, text, message);
-                break;
-                case userMessage === '. Alive' || userMessage === '. alive' || userMessage === '.Alive' || userMessage === '.alive':
-    await aliveCommand.run({ conn: sock, m: message, args: userMessage.split(' ').slice(1) });
-    break;
-case (userMessage && userMessage.trim().toLowerCase() === '.whoisgay'):
-  await whoisgayCommand.run({ conn: sock, m: message, args: userMessage.split(' ').slice(1) });
-  break;
-
-            case userMessage === '.delete' || userMessage === '.del':
-                await deleteCommand(sock, chatId, message, senderId);
-                break;
-            case userMessage.startsWith('.attp'):
-                await attpCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.mode'):
-                // Check if sender is the owner
-                  if (!message.key.fromMe && !senderIsSudo) {
-                    await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!', ...channelInfo });
-                    return;
-                }
-                // Read current data first
-                let data;
-                try {
-                    data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-                } catch (error) {
-                    console.error('Error reading access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to read bot mode status try again after 30 seconds', ...channelInfo });
-                    return;
-                }
-
-                const action = userMessage.split(' ')[1]?.toLowerCase();
-                // If no argument provided, show current status
-                if (!action) {
-                    const currentMode = data.isPublic ? 'public' : 'private';
-                    await sock.sendMessage(chatId, {
-                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public/private\n\nExample:\n.mode public - Allow everyone to use bot\n.mode private - Restrict to owner only`,
-                        ...channelInfo
-                    });
-                    return;
-                }
-
-                if (action !== 'public' && action !== 'private') {
-                    await sock.sendMessage(chatId, {
-                        text: 'Usage: .mode public/private\n\nExample:\n.mode public - Allow everyone to use bot\n.mode private - Restrict to owner only',
-                        ...channelInfo
-                    });
-                    return;
-                }
-
-                try {
-                    // Update access mode
-                    data.isPublic = action === 'public';
-
-              
+            case userMessage ===
