@@ -20,6 +20,18 @@ Click the button below to fork the Knight Bot repository to your GitHub account:
 
 ---
 
+### Join Us
+
+<div align="center">
+  <a href="https://facebook.com/YourFatherEditor">
+    <img src="https://img.shields.io/badge/Facebook-3D82ED?style=for-the-badge&logo=facebook&logoColor=white" alt="Follow on Facebook"/>
+  </a>
+  <a href="https://whatsapp.com/channel/0029VbCLVCcG8l5G2sYB9729">
+    <img src="https://img.shields.io/badge/Join%20WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Join WhatsApp"/>
+  </a>
+</div>
+
+---
 
 ## ⚙️ Features
 
