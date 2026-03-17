@@ -56,8 +56,8 @@ Click the button below to fork the Knight Bot repository to your GitHub account:
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/mruniquehacker/Knightbot-MD.git
-    cd Knightbot-MD
+    git clone https://github.com/DarkSadistic/DarkSadistic-MD.git
+    cd DarkSadistic-MD
     ```
 
 2. **Install the dependencies:**
